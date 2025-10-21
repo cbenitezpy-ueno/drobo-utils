@@ -229,7 +229,7 @@ follow along with the latest development version.  installation of git_, is nece
 then use it can be used to get a copy of the source tree::
 
   # apt-get install git
-  # git clone git://github.com/petersilva/drobo-utils
+  # git clone https://github.com/petersilva/drobo-utils
   # cd drobo-utils
   # ./drobom status
   # git pull
