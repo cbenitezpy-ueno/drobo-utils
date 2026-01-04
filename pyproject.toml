@@ -11,7 +11,7 @@ license = {text = "GPL-2.0-or-later"}
 requires-python = ">=3.10"
 authors = [
     {name = "Peter Silva", email = "Peter.A.Silva@gmail.com"},
-    {name = "Chris Olof", email = "anarcat@debian.org"}
+    {name = "Antoine Beaupré", email = "anarcat@debian.org"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -36,17 +36,8 @@ dev = [
 
 [project.scripts]
 drobom = "drobom:main"
-droboview = "droboview:main"
+droboview = "drobom:view_main"
 
 [tool.setuptools]
-py-modules = ["Drobo", "DroboGUI", "DroboIOctl"]
-
-[tool.setuptools.data-files]
-"share/pixmaps" = ["Drobo-Front-0000.gif"]
-"share/drobo-utils-doc" = [
-    "README.rst",
-    "DEVELOPERS.rst",
-    "drobom.8.rst",
-    "droboview.8.rst",
-    "CHANGES.rst"
-]
+py-modules = ["Drobo", "DroboGUI", "DroboIOctl", "drobom"]
+include-package-data = true

@@ -19,7 +19,7 @@ def load_drobom_module():
     """Load drobom script as a module."""
     drobom_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        'drobom'
+        'drobom.py'
     )
     spec = importlib.util.spec_from_loader(
         "drobom",
@@ -292,9 +292,11 @@ class TestDrobomMainFunction:
         }):
             with patch.object(sys, 'argv', ['drobom']):
                 module, spec = load_drobom_module()
+                # Load module definitions
+                spec.loader.exec_module(module)
                 # The module may exit or print usage
                 try:
-                    spec.loader.exec_module(module)
+                    module.main()
                 except SystemExit:
                     pass
 
@@ -312,8 +314,9 @@ class TestDrobomMainFunction:
         }):
             with patch.object(sys, 'argv', ['drobom', '--help']):
                 module, spec = load_drobom_module()
+                spec.loader.exec_module(module)
                 try:
-                    spec.loader.exec_module(module)
+                    module.main()
                 except SystemExit:
                     pass
 
@@ -330,8 +333,9 @@ class TestDrobomMainFunction:
         }):
             with patch.object(sys, 'argv', ['drobom', '--version']):
                 module, spec = load_drobom_module()
+                spec.loader.exec_module(module)
                 try:
-                    spec.loader.exec_module(module)
+                    module.main()
                 except SystemExit:
                     pass
 
@@ -542,8 +546,9 @@ class TestDrobomStringOption:
         }):
             with patch.object(sys, 'argv', ['drobom', '-s', 'CUSTOM', 'list']):
                 module, spec = load_drobom_module()
+                spec.loader.exec_module(module)
                 try:
-                    spec.loader.exec_module(module)
+                    module.main()
                 except SystemExit:
                     pass
 
