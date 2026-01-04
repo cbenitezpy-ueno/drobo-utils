@@ -1,7 +1,7 @@
 """
 Unit tests for DroboIOctl.py I/O layer.
 
-Achieves 100% coverage for DroboIOctl.py module.
+Provides extensive test coverage for the DroboIOctl.py module.
 """
 
 import pytest

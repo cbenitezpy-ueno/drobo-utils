@@ -1,7 +1,7 @@
 """
 Unit tests for Drobo.py core library.
 
-Achieves 100% coverage for Drobo.py module.
+Provides extensive test coverage for the Drobo.py module.
 """
 
 import pytest
@@ -328,9 +328,11 @@ class TestDroboClass:
     def test_drobo_del_closes_fd(self):
         """Test Drobo __del__ closes file descriptor."""
         drobo = Drobo.Drobo('/dev/sdz', debugflags=Drobo.DBG_Simulation)
-        drobo.fd = MagicMock()
+        mock_fd = MagicMock()
+        drobo.fd = mock_fd
         del drobo
-        # The mock should have closefd called
+        # Verify closefd was called on the mock
+        mock_fd.closefd.assert_called_once()
 
     def test_drobo_format_script_ext3(self):
         """Test format_script generates ext3 format commands."""
