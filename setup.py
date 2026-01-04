@@ -2,6 +2,13 @@
 # Drobo Utils comes with ABSOLUTELY NO WARRANTY; For details type see the file
 # named COPYING in the root of the source directory tree.
 
+import warnings
+warnings.warn(
+    "setup.py is deprecated. Please use 'pip install .' with pyproject.toml instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 from distutils.core import setup
 
 setup(name='Drobo-utils',
