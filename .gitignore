@@ -1,6 +1,16 @@
+__pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+*.egg
+.venv/
+venv/
 *.html
 .pybuild/
+htmlcov/
+.coverage
+.pytest_cache/
 build-stamp
 build/
 debian/drobo-utils.debhelper.log

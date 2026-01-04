@@ -287,211 +287,223 @@ def setlunsize(d, newlunsize, confirmation):
         print('Phew... You stopped just in time!')
 
 
-# Mainline...
+def main():
+    """Main entry point for drobom CLI."""
+    global debug
 
-if (len(sys.argv) == 1) or (sys.argv[1] == 'help'):
-    usage()
-    sys.exit()
-
-device = None
-cmd = None
-#default is chatty
-debug = 1
-
-try:
-    opts, args = getopt.getopt(sys.argv[1:], "c:d:hns:v:Vy", \
-        ["command=", "device=", "help", "no", "string=", "verbosity=", "version", "y" ])
-except getopt.GetoptError as err:
-    usage()
-    sys.exit(2)
-
-#ask for confirmation...
-confirmation = 'a'
-
-vendor_string = ''
-for o, a in opts:
-    if o in ("-c", "--command"):
-        cmd = a
-    elif o in ("-d", "--device"):
-        device = a
-    elif o in ("-h", "--help"):
+    if (len(sys.argv) == 1) or (sys.argv[1] == 'help'):
         usage()
         sys.exit()
-    elif o in ("-n", "--no"):
-        confirmation = 'n'
-    elif o in ("-s", "--string"):
-        vendor_string = a
-    elif o in ("-v", "--verbosity", "--verbose"):
-        debug = int(a)
-    elif o in ("-V", "--version"):
-        print(Drobo.VERSION)
-        sys.exit()
-    elif o in ("-y", "--yes"):
-        confirmation = 'y'
-    else:
-        assert False, "unhandled option"
 
-if cmd == None:
-    if (len(args) == 0):
+    device = None
+    cmd = None
+    #default is chatty
+    debug = 1
+
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "c:d:hns:v:Vy", \
+            ["command=", "device=", "help", "no", "string=", "verbosity=", "version", "y" ])
+    except getopt.GetoptError as err:
         usage()
+        sys.exit(2)
+
+    #ask for confirmation...
+    confirmation = 'a'
+
+    vendor_string = ''
+    for o, a in opts:
+        if o in ("-c", "--command"):
+            cmd = a
+        elif o in ("-d", "--device"):
+            device = a
+        elif o in ("-h", "--help"):
+            usage()
+            sys.exit()
+        elif o in ("-n", "--no"):
+            confirmation = 'n'
+        elif o in ("-s", "--string"):
+            vendor_string = a
+        elif o in ("-v", "--verbosity", "--verbose"):
+            debug = int(a)
+        elif o in ("-V", "--version"):
+            print(Drobo.VERSION)
+            sys.exit()
+        elif o in ("-y", "--yes"):
+            confirmation = 'y'
+        else:
+            assert False, "unhandled option"
+
+    if cmd == None:
+        if (len(args) == 0):
+            usage()
+            sys.exit()
+        cmd = args[0]
+
+    if (os.geteuid() != 0) and (debug & Drobo.DBG_Simulation == 0):
+        print("Please try again as root.")
         sys.exit()
-    cmd = args[0]
 
-if (os.geteuid() != 0) and (debug & Drobo.DBG_Simulation == 0):
-    print("Please try again as root.")
-    sys.exit()
+    l = Drobo.DiscoverLUNs(debug, vendor_string)
+    if not l:
+        print("No Drobos discovered")
+        sys.exit()
 
-l = Drobo.DiscoverLUNs(debug, vendor_string)
-if not l:
-    print("No Drobos discovered")
-    sys.exit()
+    # find the requested Drobo...
+    match = False
+    if device != None:
+        for i in l:
+            if type(i) == list:
+                for j in i:
+                    if device in j:
+                        l = [i]
+                        match = True
+            elif device in i:
+                l = [i]
+                match = True
 
-# find the requested Drobo...
-match = False
-if device != None:
-    for i in l:
-        if type(i) == list:
-            for j in i:
-                if device in j:
-                    l = [i]
-                    match = True
-        elif device in i:
-            l = [i]
-            match = True
+    if device != None and not match:
+        print("given device: %s, is not a Drobo" % device)
+        sys.exit()
 
-if device != None and not match:
-    print("given device: %s, is not a Drobo" % device)
-    sys.exit()
+    if cmd == 'list':
+        print(' '.join([':'.join(x) for x in l]))
+        sys.exit()
 
-if cmd == 'list':
-    print(' '.join([':'.join(x) for x in l]))
-    sys.exit()
+    if debug & Drobo.DBG_Detection:
+        print("found ", l)
 
-if debug & Drobo.DBG_Detection:
-    print("found ", l)
+    for u in l:
+        d = Drobo.Drobo(u, debug)
+        #assert d is a valid drobo object...
 
-for u in l:
-    d = Drobo.Drobo(u, debug)
-    #assert d is a valid drobo object...
+        if cmd == "blink":
+            d.Blink()
 
-    if cmd == "blink":
-        d.Blink()
+        elif cmd == "diag":
+            f = d.dumpDiagnostics()
+            print("diagnostics in ", f)
 
-    elif cmd == "diag":
-        f = d.dumpDiagnostics()
-        print("diagnostics in ", f)
-
-    elif cmd == "diagprint":
-        if len(args) < 2:
-            print("error: diagnostics file required as argument")
-        else:
-            print(d.decodeDiagnostics(args[1]))
-
-    elif cmd == "format":
-
-        if (len(args) < 2) or (args[1] not in valid_formats):
-            print("error: file system format required as argument")
-            print("       Choices are: " + str(valid_formats))
-        else:
-            printstatus(d)
-            print(
-                'preparing a format script for a %s file system as you requested'
-                % args[1])
-            d.format_script(args[1])
-            print('OK, I built the script but nothing is erased yet...')
-            print('You can have a look at it with: cat /tmp/fmtscript')
-            print('If you are really sure, go ahead and do: sh /tmp/fmtscript')
-            if confirmed("WARNING: Ready to destroy all your data. Continue? (y/n)", \
-               confirmation ):
-                print('ok... firing it off...')
-                fmtproc = subprocess.Popen("/tmp/fmtscript",
-                                           bufsize=0,
-                                           shell=True)
-                fmtproc.wait()
+        elif cmd == "diagprint":
+            if len(args) < 2:
+                print("error: diagnostics file required as argument")
             else:
-                print('Phew... You stopped just in time!')
+                print(d.decodeDiagnostics(args[1]))
 
-    elif cmd == 'fwcheck':
-        tuple = d.PickLatestFirmware()
-        print(tuple[3])
+        elif cmd == "format":
 
-    elif cmd == 'fwload':
-        if len(args) < 2:
-            print("error: firmware file required as argument")
-        else:
-            if d.PickFirmware(args[1]):
+            if (len(args) < 2) or (args[1] not in valid_formats):
+                print("error: file system format required as argument")
+                print("       Choices are: " + str(valid_formats))
+            else:
+                printstatus(d)
+                print(
+                    'preparing a format script for a %s file system as you requested'
+                    % args[1])
+                d.format_script(args[1])
+                print('OK, I built the script but nothing is erased yet...')
+                print('You can have a look at it with: cat /tmp/fmtscript')
+                print('If you are really sure, go ahead and do: sh /tmp/fmtscript')
+                if confirmed("WARNING: Ready to destroy all your data. Continue? (y/n)", \
+                   confirmation ):
+                    print('ok... firing it off...')
+                    fmtproc = subprocess.Popen("/tmp/fmtscript",
+                                               bufsize=0,
+                                               shell=True)
+                    fmtproc.wait()
+                else:
+                    print('Phew... You stopped just in time!')
+
+        elif cmd == 'fwcheck':
+            tuple = d.PickLatestFirmware()
+            print(tuple[3])
+
+        elif cmd == 'fwload':
+            if len(args) < 2:
+                print("error: firmware file required as argument")
+            else:
+                if d.PickFirmware(args[1]):
+                    d.writeFirmware(update)
+                    d.Sync()
+
+        elif cmd == 'fwupgrade':
+            if d.updateFirmwareRepository():
                 d.writeFirmware(update)
                 d.Sync()
 
-    elif cmd == 'fwupgrade':
-        if d.updateFirmwareRepository():
-            d.writeFirmware(update)
-            d.Sync()
-
-    elif cmd == 'info':
-        if len(args) > 1:
-            info(d, args[1].split(','))
-        else:
-            info(d, valid_print)
-
-    elif cmd == "set":
-        if len(args) < 2:
-            print("error: set what?")
-            usage()
-        else:
-            what = args[1]
-            if what == "name":
-                d.Sync(args[2])
-            elif what == "lunsize":
-                printstatus(d)
-                setlunsize(d, args[2], confirmation)
-
-            elif what == "time":
-                d.Sync()
+        elif cmd == 'info':
+            if len(args) > 1:
+                info(d, args[1].split(','))
             else:
-                options = d.GetOptions()
-                if args[1] in list(options.keys()):
-                    # TODO: are all options integers? no..
-                    if args[2] == 'True':
-                        value = True
-                    elif args[2] == 'False':
-                        value = False
-                    elif args[1] == 'IPAddress' or args[1] == 'NetMask':
-                        value = args[2]
-                    else:
-                        value = int(args[2])
+                info(d, valid_print)
 
-                    options[args[1]] = value
-                    d.SetOptions(options)
+        elif cmd == "set":
+            if len(args) < 2:
+                print("error: set what?")
+                usage()
+            else:
+                what = args[1]
+                if what == "name":
+                    d.Sync(args[2])
+                elif what == "lunsize":
+                    printstatus(d)
+                    setlunsize(d, args[2], confirmation)
+
+                elif what == "time":
+                    d.Sync()
                 else:
-                    print('option not present: ', args[1])
+                    options = d.GetOptions()
+                    if args[1] in list(options.keys()):
+                        # TODO: are all options integers? no..
+                        if args[2] == 'True':
+                            value = True
+                        elif args[2] == 'False':
+                            value = False
+                        elif args[1] == 'IPAddress' or args[1] == 'NetMask':
+                            value = args[2]
+                        else:
+                            value = int(args[2])
 
-    elif cmd == "shutdown":
-        d.Standby()
+                        options[args[1]] = value
+                        d.SetOptions(options)
+                    else:
+                        print('option not present: ', args[1])
 
-    elif cmd == "status":
-        printstatus(d)
+        elif cmd == "shutdown":
+            d.Standby()
 
-    elif cmd == "time":
-        settings = d.GetSubPageSettings()
-        print("Drobo says it is:", time.ctime(settings[0]))
+        elif cmd == "status":
+            printstatus(d)
 
-    elif cmd == "view":
-        try:
-            from PyQt5 import QtWidgets
-            from PyQt5 import QtCore
-        except:
-            print("QT support missing, no GUI possible")
-            print("perhaps following will help: apt-get install python3-qtpy")
+        elif cmd == "time":
+            settings = d.GetSubPageSettings()
+            print("Drobo says it is:", time.ctime(settings[0]))
 
-        from DroboGUI import DroboGUI
+        elif cmd == "view":
+            try:
+                from PyQt5 import QtWidgets
+                from PyQt5 import QtCore
+            except:
+                print("QT support missing, no GUI possible")
+                print("perhaps following will help: apt-get install python3-qtpy")
 
-        # fire up a GUI for the given LUN, stays foreground...
-        app = QtWidgets.QApplication(sys.argv)
-        tb = DroboGUI(d)
-        tb.show()
-        app.exec_()
+            from DroboGUI import DroboGUI
 
-    else:
-        usage()
-        print("Unknown Command: ", cmd)
+            # fire up a GUI for the given LUN, stays foreground...
+            app = QtWidgets.QApplication(sys.argv)
+            tb = DroboGUI(d)
+            tb.show()
+            app.exec_()
+
+        else:
+            usage()
+            print("Unknown Command: ", cmd)
+
+
+def view_main():
+    """Entry point for droboview command (launches GUI directly)."""
+    sys.argv.append('view')
+    main()
+
+
+if __name__ == "__main__":
+    main()

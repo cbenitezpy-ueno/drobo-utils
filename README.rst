@@ -138,12 +138,24 @@ These packages are called Dependencies.
    derived distributions (debian, \*ubuntu, MEPIS, PCLinux-OS, etc...) should 
    inherit the package in due course.  
 
-Ubuntu 20.04
-============
+Python Requirements
+===================
 
-later OS versions ship with python3. The dependencies for the current
-package are whatever seems current for a given OS. Nothing newish required.
-code just minimally ported to be functional on modern platform.
+**Python 3.10 or later is required.**
+
+Supported Python versions: 3.10, 3.11, 3.12
+
+Installation from source::
+
+  pip install .
+
+Or with GUI support::
+
+  pip install ".[gui]"
+
+For development (includes pytest)::
+
+  pip install ".[dev]"
 
 
 Dependencies
