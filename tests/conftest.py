@@ -7,6 +7,7 @@ This module provides mock fixtures for testing without physical hardware.
 import pytest
 import sys
 import os
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch, mock_open
 from io import StringIO
 
@@ -118,6 +119,7 @@ def mock_device_file():
 @pytest.fixture
 def mock_os_listdir():
     """Mock os.listdir to return fake device list."""
+    @contextmanager
     def _create_mock(devices=None):
         if devices is None:
             devices = ['sda', 'sdb', 'sdc']
@@ -199,6 +201,7 @@ def mock_drobo_device(mock_drobo_responses):
 @pytest.fixture
 def mock_firmware_server():
     """Mock urllib requests for firmware download testing."""
+    @contextmanager
     def _create_mock(firmware_data=None, version='1.4.0', status_code=200):
         if firmware_data is None:
             # Create minimal valid firmware structure
@@ -227,6 +230,7 @@ def mock_firmware_server():
 @pytest.fixture
 def mock_firmware_zip():
     """Mock zipfile operations for firmware extraction."""
+    @contextmanager
     def _create_mock(firmware_content=b'FAKE_FIRMWARE'):
         mock_zip = MagicMock()
         mock_zip_file = MagicMock()

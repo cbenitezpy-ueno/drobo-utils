@@ -17,20 +17,22 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import conftest markers
 from tests.conftest import requires_linux, requires_fcntl
 
+# Import modules under test
+import DroboIOctl
+import Drobo
+
 
 class TestHexdump:
     """Tests for hexdump() utility function."""
 
     def test_hexdump_empty_data(self, capsys):
         """Test hexdump with empty data."""
-        import DroboIOctl
         DroboIOctl.hexdump("test", b'')
         captured = capsys.readouterr()
         assert "test 000:" in captured.out
 
     def test_hexdump_small_data(self, capsys):
         """Test hexdump with small data."""
-        import DroboIOctl
         DroboIOctl.hexdump("label", b'\x01\x02\x03')
         captured = capsys.readouterr()
         assert "label 000:" in captured.out
@@ -40,7 +42,6 @@ class TestHexdump:
 
     def test_hexdump_16_bytes(self, capsys):
         """Test hexdump with exactly 16 bytes (line wrap)."""
-        import DroboIOctl
         data = bytes(range(16))
         DroboIOctl.hexdump("test", data)
         captured = capsys.readouterr()
@@ -50,7 +51,6 @@ class TestHexdump:
 
     def test_hexdump_32_bytes(self, capsys):
         """Test hexdump with 32 bytes (two full lines)."""
-        import DroboIOctl
         data = bytes(range(32))
         DroboIOctl.hexdump("data", data)
         captured = capsys.readouterr()
@@ -60,7 +60,6 @@ class TestHexdump:
 
     def test_hexdump_with_bytes_type(self, capsys):
         """Test hexdump handles bytes type correctly."""
-        import DroboIOctl
         DroboIOctl.hexdump("test", b'\xff\x00\xab')
         captured = capsys.readouterr()
         assert "ff" in captured.out
@@ -73,12 +72,10 @@ class TestSgIoHdrStructure:
 
     def test_sg_io_hdr_class_exists(self):
         """Test sg_io_hdr class is defined."""
-        import DroboIOctl
         assert hasattr(DroboIOctl, 'sg_io_hdr')
 
     def test_sg_io_hdr_constants(self):
         """Test sg_io_hdr class constants."""
-        import DroboIOctl
         assert DroboIOctl.sg_io_hdr.SG_DXFER_TO_DEV == -2
         assert DroboIOctl.sg_io_hdr.SG_DXFER_FROM_DEV == -3
         assert DroboIOctl.sg_io_hdr.SG_IO == 0x2285
@@ -86,13 +83,11 @@ class TestSgIoHdrStructure:
 
     def test_sg_io_hdr_sam_stat_constants(self):
         """Test sg_io_hdr SAM_STAT constants."""
-        import DroboIOctl
         assert DroboIOctl.sg_io_hdr.SAM_STAT_GOOD == 0x00
         assert DroboIOctl.sg_io_hdr.SAM_STAT_CHECK_CONDITION == 0x02
 
     def test_sg_io_hdr_fields_defined(self):
         """Test sg_io_hdr has all required fields."""
-        import DroboIOctl
         field_names = [f[0] for f in DroboIOctl.sg_io_hdr._fields_]
 
         expected_fields = [
@@ -108,7 +103,6 @@ class TestSgIoHdrStructure:
 
     def test_sg_io_hdr_init_defaults(self):
         """Test sg_io_hdr __init__ sets correct defaults."""
-        import DroboIOctl
         hdr = DroboIOctl.sg_io_hdr()
 
         assert hdr.interface_id == ord('S')
@@ -152,7 +146,6 @@ class TestDroboIOctlClass:
         """Test DroboIOctl initialization."""
         mock_open, mock_file, mock_ioctl = mock_file_and_ioctl
 
-        import DroboIOctl
         dio = DroboIOctl.DroboIOctl('/dev/sdz', debugflags=0)
 
         assert dio.char_dev_file == '/dev/sdz'
@@ -180,7 +173,6 @@ class TestDroboIOctlClass:
 
         mock_ioctl.side_effect = ioctl_side_effect
 
-        import DroboIOctl
         dio = DroboIOctl.DroboIOctl('/dev/sdz', debugflags=0)
         version = dio.version()
 
@@ -190,7 +182,6 @@ class TestDroboIOctlClass:
         """Test DroboIOctl closefd() method."""
         mock_open, mock_file, mock_ioctl = mock_file_and_ioctl
 
-        import DroboIOctl
         dio = DroboIOctl.DroboIOctl('/dev/sdz', debugflags=0)
         dio.closefd()
 
@@ -201,7 +192,6 @@ class TestDroboIOctlClass:
         """Test DroboIOctl closefd() with integer fd (already closed)."""
         mock_open, mock_file, mock_ioctl = mock_file_and_ioctl
 
-        import DroboIOctl
         dio = DroboIOctl.DroboIOctl('/dev/sdz', debugflags=0)
         dio.sg_fd = 5  # Simulate integer fd
         dio.closefd()
@@ -233,7 +223,6 @@ class TestDroboIOctlIdentifyLUN:
 
                 mock_ioctl.side_effect = ioctl_side_effect
 
-                import DroboIOctl
                 dio = DroboIOctl.DroboIOctl('/dev/sdz', debugflags=0)
 
                 # Mock get_sub_page for inquiry
@@ -244,6 +233,20 @@ class TestDroboIOctlIdentifyLUN:
                 dio.get_sub_page = MagicMock(return_value=inquiry_response)
 
                 yield dio, mock_ioctl
+
+    def test_identify_lun_returns_tuple(self, mock_dio_with_identify):
+        """Test identifyLUN returns a tuple with device info."""
+        dio, mock_ioctl = mock_dio_with_identify
+        result = dio.identifyLUN()
+        assert isinstance(result, tuple)
+        assert len(result) == 5
+
+    def test_identify_lun_vendor_string(self, mock_dio_with_identify):
+        """Test identifyLUN returns correct vendor string."""
+        dio, mock_ioctl = mock_dio_with_identify
+        result = dio.identifyLUN()
+        vendor = result[4]
+        assert 'Drobo' in str(vendor)
 
 
 class TestDroboIOctlGetSubPage:
@@ -259,7 +262,6 @@ class TestDroboIOctlGetSubPage:
             with patch('DroboIOctl.ioctl') as mock_ioctl:
                 mock_ioctl.return_value = 0
 
-                import DroboIOctl
                 dio = DroboIOctl.DroboIOctl('/dev/sdz', debugflags=0)
                 yield dio, mock_ioctl
 
@@ -284,7 +286,6 @@ class TestDroboIOctlGetSubPage:
         """Test get_sub_page with debug output."""
         dio, mock_ioctl = mock_dio_for_get_sub_page
 
-        import Drobo
         dio.debug = Drobo.DBG_HWDialog
 
         def ioctl_side_effect(fd, request, io_hdr, mutate=True):
@@ -349,7 +350,6 @@ class TestDroboIOctlGetSubPage:
             io_hdr.status = 0
             io_hdr.resid = 0
             # Verify direction is set correctly
-            import DroboIOctl
             assert io_hdr.dxfer_direction == DroboIOctl.sg_io_hdr.SG_DXFER_TO_DEV
             return 0
 
@@ -372,7 +372,6 @@ class TestDroboIOctlPutSubPage:
             with patch('DroboIOctl.ioctl') as mock_ioctl:
                 mock_ioctl.return_value = 0
 
-                import DroboIOctl
                 dio = DroboIOctl.DroboIOctl('/dev/sdz', debugflags=0)
                 yield dio, mock_ioctl
 
@@ -397,7 +396,6 @@ class TestDroboIOctlPutSubPage:
         """Test put_sub_page with debug output."""
         dio, mock_ioctl = mock_dio_for_put_sub_page
 
-        import Drobo
         dio.debug = Drobo.DBG_HWDialog
 
         def ioctl_side_effect(fd, request, io_hdr, mutate=True):
@@ -487,7 +485,6 @@ class TestDroboLunList:
         mock_listdir, mock_class = mock_listdir_and_ioctl
         mock_listdir.return_value = ['tty0', 'null', 'zero']
 
-        import DroboIOctl
         result = DroboIOctl.drobolunlist()
 
         assert result == []
@@ -501,7 +498,6 @@ class TestDroboLunList:
         mock_instance.identifyLUN.return_value = (0, 0, 0, 0, 'Drobo   ')
         mock_class.return_value = mock_instance
 
-        import DroboIOctl
         result = DroboIOctl.drobolunlist()
 
         # Should find the drobo
@@ -516,7 +512,6 @@ class TestDroboLunList:
         mock_instance.identifyLUN.return_value = (0, 0, 0, 0, 'ATA     ')
         mock_class.return_value = mock_instance
 
-        import DroboIOctl
         result = DroboIOctl.drobolunlist()
 
         assert result == []
@@ -530,8 +525,6 @@ class TestDroboLunList:
         mock_instance.identifyLUN.return_value = (0, 0, 0, 0, 'Drobo   ')
         mock_class.return_value = mock_instance
 
-        import DroboIOctl
-        import Drobo
         result = DroboIOctl.drobolunlist(debugflags=Drobo.DBG_Detection)
 
         captured = capsys.readouterr()
@@ -553,7 +546,6 @@ class TestDroboLunList:
 
         mock_class.side_effect = constructor_side_effect
 
-        import DroboIOctl
         result = DroboIOctl.drobolunlist()
 
         # Should handle exception gracefully

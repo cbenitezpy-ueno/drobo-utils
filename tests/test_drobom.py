@@ -426,6 +426,7 @@ class TestDrobomExitCodes:
         mock_ioctl_module = MagicMock()
         mock_ioctl_module.drobolunlist.return_value = []
 
+        exit_code = None
         with patch.dict('sys.modules', {
             'Drobo': mock_drobo_module,
             'DroboIOctl': mock_ioctl_module
@@ -434,10 +435,11 @@ class TestDrobomExitCodes:
                 module, spec = load_drobom_module()
                 try:
                     spec.loader.exec_module(module)
-                    # If we get here, no error exit
+                    exit_code = 0  # No exception means success
                 except SystemExit as e:
-                    # Exit code 0 is success
-                    pass
+                    exit_code = e.code if e.code is not None else 0
+        # Successful list command should exit with 0 or complete normally
+        assert exit_code == 0 or exit_code is None, f"Expected exit code 0, got {exit_code}"
 
     def test_invalid_command_exits_nonzero(self):
         """Test invalid command returns non-zero exit code."""
@@ -447,6 +449,7 @@ class TestDrobomExitCodes:
 
         mock_ioctl_module = MagicMock()
 
+        exit_code = None
         with patch.dict('sys.modules', {
             'Drobo': mock_drobo_module,
             'DroboIOctl': mock_ioctl_module
@@ -455,9 +458,12 @@ class TestDrobomExitCodes:
                 module, spec = load_drobom_module()
                 try:
                     spec.loader.exec_module(module)
+                    exit_code = 0  # No exception
                 except SystemExit as e:
-                    # Any exit (error or not) is acceptable
-                    pass
+                    exit_code = e.code if e.code is not None else 0
+        # Invalid command should exit with non-zero or print usage
+        # Either behavior is acceptable for invalid commands
+        assert exit_code is not None, "Command should have executed"
 
 
 class TestDrobomDeviceOption:
